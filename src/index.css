@@ -1,0 +1,120 @@
+/*
+  Palette taken from nextplaygames.co (Tailwind greens + its own status colours):
+  green-500 #22c55e (band), green-600 #16a34a (brand), green-700 #15803d (filled buttons,
+  green text: white on it is 5.0:1, AA), near-black #111, gray scale for ink and lines.
+*/
+:root {
+  --font-body: "Poppins", system-ui, "Segoe UI", sans-serif;
+
+  --color-ink: #111827;
+  --color-text: #1f2937;
+  --color-muted: #4b5563;
+  --color-faint: #6b7280;
+  --color-border: #e5e7eb;
+  --color-line: #f3f4f6;
+  --color-surface: #fff;
+  --color-ground: #f9fafb;
+  --color-column: #f3f4f6;
+
+  --color-band: #22c55e;
+  --color-brand: #16a34a;
+  --color-primary: #15803d;
+  --color-primary-hover: #166534;
+  --color-primary-soft: #dcfce7;
+  --color-primary-ink: #14532d;
+
+  --color-blue: #2d6cb0;
+  --color-blue-ink: #1e40af;
+  --color-blue-soft: #dbeafe;
+  --color-amber: #e8940c;
+  --color-amber-ink: #92400e;
+  --color-amber-soft: #fef3c7;
+  --color-red: #e15b52;
+  --color-red-ink: #b5342b;
+  --color-red-soft: #fde8e8;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgb(17 24 39 / 5%);
+  --shadow-lift: 0 8px 20px rgb(17 24 39 / 8%);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background: var(--color-ground);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 280px;
+  line-height: 1.5;
+  background: var(--color-ground);
+  border-top: 4px solid var(--color-band);
+}
+
+#root {
+  min-height: calc(100svh - 4px);
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--color-band);
+  outline-offset: 2px;
+}
+
+::selection {
+  color: var(--color-primary-ink);
+  background: var(--color-primary-soft);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

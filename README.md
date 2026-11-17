@@ -1,0 +1,134 @@
+# Task Board
+
+A personal Kanban board built with React, TypeScript, Vite, and Supabase. Create a task, move it between four columns, and return to the same board in the same browser.
+
+## Features
+
+- To Do, In Progress, In Review, and Done columns.
+- Task creation with trimmed titles, blank-title validation, duplicate-submit protection, and saved-row confirmation.
+- Mouse and touch drag handles with a moving-card overlay and highlighted drop targets.
+- Keyboard drag support and labeled status dropdowns.
+- Immediate status changes with rollback when a save cannot be confirmed.
+- Automatic anonymous sign-in, existing-session reuse, and server verification of stored users.
+- Supabase task persistence with runtime response validation and paginated loading.
+- Ownership policies enforced by PostgreSQL Row Level Security.
+- Loading, empty, saving, and error states; retry and refresh controls.
+- Responsive layout: four columns on desktop, two on tablets, one on phones.
+- Task details drawer with title/deadline editing, timestamped comments, and activity history.
+- Database triggers record task creation, changed fields, and new comments in the same transaction.
+- Optional deadlines with overdue, due-today, due-soon, and completed indicators.
+- Board summary with total, completed, and overdue task counts.
+
+Assessment advanced features 2, 3, 5, and 7 are implemented locally. Team assignments, labels, and search/filtering remain deferred. Description and priority are stored fields without editing controls.
+
+Click a task title to open its details. Comments are limited to 4,000 characters and cannot be edited or deleted. Due soon means the next three calendar days; due today is separate. Overdue means an unfinished task whose deadline is before today in the browser's local timezone. Completed tasks never count as overdue. Indicators refresh when the day changes or the tab becomes visible.
+
+## Local setup
+
+Use Node.js 24 and npm. On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm`.
+
+```sh
+npm ci
+```
+
+1. Create or use a free Supabase project.
+2. Enable anonymous sign-ins under Authentication.
+3. Run [supabase/schema.sql](supabase/schema.sql) in that project's SQL Editor.
+4. Copy `.env.example` to `.env.local`.
+5. Set the project URL and publishable key from the Supabase Connect dialog.
+
+**Upgrading the existing board:** run [supabase/migrations/20261115_task_details.sql](supabase/migrations/20261115_task_details.sql) in the Supabase SQL Editor. This adds comments, activity, permissions, and triggers while preserving tasks. It is rerunnable and has been tested locally; it has not been applied to the hosted project by the assistant. History starts when the migration is applied; previous changes are not reconstructed.
+
+```dotenv
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+```
+
+Use a browser publishable key, or the equivalent legacy anon key. Never use a secret key, service-role key, or database password in frontend configuration. Vite embeds these public configuration values in the browser bundle; the environment file does not hide them.
+
+```sh
+npm run dev
+```
+
+Restart Vite after changing environment values. Missing configuration appears as a retryable setup error. The app creates a guest only when no existing session is present.
+
+## Structure
+
+| File | Responsibility |
+| --- | --- |
+| `src/App.tsx` | Guest/task lifecycle, form state, optimistic updates, drag/drop callbacks |
+| `src/components/BoardColumn.tsx` | Droppable column, count, and empty state |
+| `src/components/TaskCard.tsx` | Task title, drag handle, and controlled status select |
+| `src/components/TaskDetails.tsx` | Accessible modal drawer, edits, comments, and activity |
+| `src/components/BoardSummary.tsx` | Total, completed, and overdue counts |
+| `src/types.ts` | Task types, statuses, and runtime row validation |
+| `src/lib/supabase.ts` | Shared client, configuration checks, request timeout |
+| `src/lib/auth.ts` | Single in-flight guest initialization and session reuse |
+| `src/lib/tasks.ts` | Paginated reads, inserts, updates, and response parsing |
+| `src/lib/taskDetails.ts` | Paginated comments/activity, comment insertion, and timeline labels |
+| `src/lib/dates.ts`, `src/lib/useToday.ts` | Calendar-date validation, shared deadline rules, day rollover |
+| `supabase/schema.sql` | Table, constraints, index, grants, and ownership policies |
+| `supabase/migrations/20261115_task_details.sql` | Non-destructive upgrade for existing boards |
+| `supabase/schema.test.mjs` | Local PostgreSQL migration, permission, and trigger checks |
+
+The UI follows the original component/props/callback structure. Application and test code contain no comments.
+
+## Data ownership
+
+The full schema is in [supabase/schema.sql](supabase/schema.sql). Required fields are `id`, `title`, `status`, `user_id`, and `created_at`. UUIDs and timestamps are generated by PostgreSQL. New rows use `auth.uid()` for their owner.
+
+RLS is enabled. The unauthenticated `anon` role has no table privileges. Anonymous users who sign in have the `authenticated` role; policies allow them to read, insert, update, and delete only rows owned by their authenticated user ID. UPDATE checks both the existing row and its resulting ownership. The frontend's owner filter supplements these policies; it is not the security boundary.
+
+The schema is rerunnable for an existing compatible table. `CREATE TABLE IF NOT EXISTS` does not migrate a differently shaped table.
+
+Comments and activity also require ownership of their parent task. Comment insert privileges cover only task ID and body, so clients cannot forge the author or timestamp. Activity is read-only to authenticated users; restricted database trigger functions generate it. No-op updates create no history. These are personal guest workspaces, so comment authors appear as "You".
+
+## Verification
+
+```sh
+npm test
+npm run test:db
+npm run lint
+npm run build
+npm run test:e2e
+```
+
+`build` runs TypeScript checking before Vite's production build. Vitest covers row validation, authentication, persistence errors, form behavior, concurrent saves, and optimistic rollback.
+
+`test:db` runs the actual migration and policies in an in-memory PGlite PostgreSQL engine, with test auth roles and identities. It covers existing-data preservation, reruns, rollback, trigger events, ownership isolation, and rejection of forged comments/activity. PGlite is a development dependency only.
+
+Playwright starts a separate local server on port 4178 with fake configuration and intercepts Supabase HTTP requests. It verifies desktop dragging, touch dragging, keyboard cancellation, dropping outside the board, task creation, refresh/session reuse, rollback, and mobile layout. It uses installed Microsoft Edge on Windows. On other platforms, install Playwright Chromium first:
+
+```sh
+npx playwright install chromium
+```
+
+Browser checks also cover due-date creation/removal, comment and title save/retry, timeline updates, summary counts, persistence after reload, Escape/focus restoration, and the mobile drawer. These tests do not create hosted users or tasks. Local database tests and mocked HTTP tests do not prove the hosted project's configuration. Desktop and mobile screenshots are written to the ignored `test-results/` directory.
+
+### Live verification before submission
+
+1. Open the app normally and create a uniquely named task. Reload: the same task and status should remain.
+2. Open a private browser window. It should have a different guest identity and an empty board.
+3. Create a different task there. Each browser must display only its own task.
+4. Using a test user's own session, attempt a direct request for the other user's row. Reads must return no rows; updates/deletes must not affect it; an insert or ownership change claiming the other user must fail.
+5. Retry a failed network request, then verify the saved status after refreshing.
+6. Check the deployed demo with a fresh guest session before sharing it.
+7. Add a comment, edit a title/deadline, and move a task; reload and check the timeline. Verify the other guest cannot read these comments/activity or insert a comment on the task.
+
+## Hosting
+
+This is a static Vite app. A free static host can build it with `npm run build` and publish `dist`. Set the two `VITE_SUPABASE_...` values in the host's build environment and rebuild after changing them. Anonymous sign-in and the SQL schema must already be configured in Supabase.
+
+No deployment or remote Git write is part of the local implementation. Add the confirmed live URL and repository URL to the assessment document after hosting and repository sharing are authorized.
+
+## Tradeoffs
+
+- Guest access is tied to browser storage. Clearing that storage, signing out, or switching devices can lose access to that guest's tasks; account recovery is not implemented.
+- New anonymous sign-ins depend on Supabase's configured limits. Review its anonymous-auth abuse controls before sharing the demo broadly.
+- Each task is locked while its status save is pending. Different tasks can save concurrently. Refresh is disabled during mutations.
+- A failed or timed-out write can have reached the server. The UI retains the title or restores the old status and asks the user to refresh before retrying. Creation is not idempotent across refreshes.
+- Reads use ordered pages of 100 tasks. Cross-tab updates require refresh; there are no realtime subscriptions or conflict-version checks.
+- Tasks move between statuses; ordering within a column is not persisted.
+- UI text is rendered through React, and database responses are validated before entering task state.
+- Keyboard dropdowns provide a direct alternative to dragging. Reduced-motion preferences disable decorative motion.
+- The application supports current browsers with AbortSignal timeout/combination support.
